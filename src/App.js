@@ -1,14 +1,11 @@
 import React from "react";
-import ReactDOM from "react-dom";
+//import ReactDOM from "react-dom";
 import WSAvcPlayer from "ws-avc-player";
 
 import * as cocoSsd from "@tensorflow-models/coco-ssd";
 import "@tensorflow/tfjs";
 import "./styles.css";
 //import "https://rawgit.com/131/h264-live-player/master/vendor/dist/http-live-player.js"
-
-
-import WSAvcPlayer from "ws-avc-player";
 
 
 
