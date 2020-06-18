@@ -10,8 +10,7 @@ import "./styles.css";
 
 import WSAvcPlayer from "ws-avc-player";
 
-import * as cocoSsd from "@tensorflow-models/coco-ssd";
-import "@tensorflow/tfjs";
+
 
 
 
