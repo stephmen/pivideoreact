@@ -1,60 +1,129 @@
-import React, { Component } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import ReactDOM from "react-dom";
+import WSAvcPlayer from "ws-avc-player";
 
-class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      name: '',
-      greeting: ''
-    };
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
+import * as cocoSsd from "@tensorflow-models/coco-ssd";
+import "@tensorflow/tfjs";
+import "./styles.css";
+//import "https://rawgit.com/131/h264-live-player/master/vendor/dist/http-live-player.js"
+
+  
+class App extends React.Component {
+  
+  videoPi = React.createRef();
+  videoRef = React.createRef();
+  canvasRef = React.createRef();
+
+  componentDidMount() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const webCamPromise = navigator.mediaDevices
+        .getUserMedia({
+          audio: false,
+          video: {
+            facingMode: "user"
+          }
+        })
+        .then(stream => {
+          window.stream = stream;
+          this.videoRef.current.srcObject = stream;
+          return new Promise((resolve, reject) => {
+            this.videoRef.current.onloadedmetadata = () => {
+              resolve();
+            };
+          });
+        });
+      const modelPromise = cocoSsd.load();
+      Promise.all([modelPromise, webCamPromise])
+        .then(values => {
+          this.detectFrame(this.videoRef.current, values[0]);
+        })
+        .catch(error => {
+          console.error(error);
+        });
+    }
   }
 
-  handleChange(event) {
-    this.setState({ name: event.target.value });
-  }
+  detectFrame = (video, model) => {
+    model.detect(video).then(predictions => {
+      this.renderPredictions(predictions);
+      requestAnimationFrame(() => {
+        this.detectFrame(video, model);
+      });
+    });
+  firstVid()
 
-  handleSubmit(event) {
-    event.preventDefault();
-    fetch(`/api/greeting?name=${encodeURIComponent(this.state.name)}`)
-      .then(response => response.json())
-      .then(state => this.setState(state));
+  function firstVid () {
+  let videoPi = React.createRef();
+  const wsavc = new WSAvcPlayer(videoPi, "webgl");
+  //const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
+  wsavc.connect("ws://192.168.0.118/video-stream");
   }
+  };
+
+  renderPredictions = predictions => {
+    const ctx = this.canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    // Font options.
+    const font = "16px sans-serif";
+    ctx.font = font;
+    ctx.textBaseline = "top";
+    predictions.forEach(prediction => {
+      const x = prediction.bbox[0];
+      const y = prediction.bbox[1];
+      const width = prediction.bbox[2];
+      const height = prediction.bbox[3];
+      // Draw the bounding box.
+      ctx.strokeStyle = "#00FFFF";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x, y, width, height);
+      // Draw the label background.
+      ctx.fillStyle = "#00FFFF";
+      const textWidth = ctx.measureText(prediction.class).width;
+      const textHeight = parseInt(font, 10); // base 10
+      ctx.fillRect(x, y, textWidth + 4, textHeight + 4);
+    });
+
+    predictions.forEach(prediction => {
+      const x = prediction.bbox[0];
+      const y = prediction.bbox[1];
+      // Draw the text last to ensure it's on top.
+      ctx.fillStyle = "#000000";
+      ctx.fillText(prediction.class, x, y);
+    });
+
+
+  };
 
   render() {
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <p>
-            Edit <code>src/App.js</code> and save to reload.
-          </p>
-          <form onSubmit={this.handleSubmit}>
-            <label htmlFor="name">Enter your name: </label>
-            <input
-              id="name"
-              type="text"
-              value={this.state.name}
-              onChange={this.handleChange}
-            />
-            <button type="submit">Submit</button>
-          </form>
-          <p>{this.state.greeting}</p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </header>
-      </div>
+      <div>
+        <canvas
+          className="size"
+          ref={this.canvasRef}
+          width="600"
+          height="500"
+        />
+        <video
+          className="size"
+          autoPlay
+          playsInline
+          muted
+          ref={this.videoRef}
+          width="600"
+          height="500"
+        />
+        <canvas
+          className="size"
+          ref={this.canvasRef}
+          width="600"
+          height="500"
+        />
+        <br />
+   
+    </div>
     );
   }
 }
 
-export default App;
+const rootElement = document.getElementById("root");
+ReactDOM.render(<App />, rootElement);
